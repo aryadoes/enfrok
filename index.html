@@ -1,0 +1,1414 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>ENFROK OS 5.1 — Hyper Glass WebOS</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --accent: #00f2fe;
+    --accent-purple: #9d4edd;
+    --accent-glow: rgba(0, 242, 254, 0.4);
+    --bg-wallpaper: url('https://images.unsplash.com/photo-1506744038136-46273834b3fb?q=80&w=1920&auto=format&fit=crop');
+    
+    --glass-topbar: rgba(10, 14, 24, 0.65);
+    --glass-dock: rgba(12, 16, 28, 0.85);
+    --glass-window: rgba(12, 16, 26, 0.92);
+    --glass-window-unfocused: rgba(8, 11, 18, 0.75);
+    --glass-menu: rgba(14, 18, 30, 0.95);
+    --glass-dialog: rgba(16, 20, 34, 0.96);
+    --glass-border: rgba(255, 255, 255, 0.16);
+    --glass-border-focused: rgba(0, 242, 254, 0.6);
+    --glass-shadow: 0 30px 80px rgba(0, 0, 0, 0.85);
+    --glass-blur: blur(35px);
+    
+    --text-main: #f8fafc;
+    --text-sub: #94a3b8;
+    --radius-window: 20px;
+    --radius-dock: 26px;
+    --font-ui: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+    --font-code: 'JetBrains Mono', monospace;
+    --anim-curve: cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
+  body, html {
+    width: 100%; height: 100%;
+    font-family: var(--font-ui);
+    background: #030508;
+    color: var(--text-main);
+    overflow: hidden;
+  }
+
+  /* Instant screen switching without lag */
+  .os-screen {
+    position: absolute; inset: 0;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+  }
+  .os-screen.hidden { display: none !important; }
+
+  /* Controls */
+  .btn-ui {
+    padding: 8px 16px; border-radius: 10px; font-weight: 600; font-size: 0.82rem;
+    border: 1px solid var(--glass-border); background: rgba(255, 255, 255, 0.08); color: var(--text-main);
+    cursor: pointer; display: inline-flex; align-items: center; gap: 8px;
+    transition: all 0.2s var(--anim-curve);
+  }
+  .btn-ui:hover { background: rgba(255, 255, 255, 0.18); border-color: var(--accent); transform: translateY(-1px); }
+
+  .btn-accent {
+    background: linear-gradient(135deg, var(--accent), var(--accent-purple));
+    color: #030508; border: none; font-weight: 700;
+  }
+  .btn-danger { background: rgba(239, 68, 68, 0.3); border-color: rgba(239, 68, 68, 0.6); color: #fca5a5; }
+
+  .input-ui {
+    width: 100%; padding: 10px 14px; border-radius: 10px;
+    background: rgba(0, 0, 0, 0.55); border: 1px solid var(--glass-border);
+    color: var(--text-main); font-family: var(--font-ui); font-size: 0.88rem; outline: none;
+    transition: border-color 0.2s var(--anim-curve);
+  }
+  .input-ui:focus { border-color: var(--accent); }
+
+  /* BOOT & SETUP SETUP */
+  #boot-screen { background: #030508; z-index: 10000; }
+  .boot-logo-orb {
+    width: 76px; height: 76px; border-radius: 24px;
+    background: linear-gradient(135deg, var(--accent), var(--accent-purple));
+    box-shadow: 0 0 50px var(--accent-glow);
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 800; font-size: 2.4rem; color: #030508;
+  }
+
+  #setup-screen { background: #030508; z-index: 9000; }
+  .setup-card {
+    width: 820px; height: 540px; background: var(--glass-dialog); backdrop-filter: var(--glass-blur);
+    border: 1px solid var(--glass-border); border-radius: 26px; box-shadow: var(--glass-shadow);
+    display: flex; overflow: hidden;
+  }
+  .setup-sidebar {
+    width: 230px; background: rgba(0, 0, 0, 0.5); border-right: 1px solid var(--glass-border);
+    padding: 40px 22px; display: flex; flex-direction: column; gap: 18px;
+  }
+  .setup-step { display: flex; align-items: center; gap: 14px; font-size: 0.88rem; color: var(--text-sub); font-weight: 600; }
+  .setup-step.active { color: var(--accent); }
+  .setup-step-num {
+    width: 28px; height: 28px; border-radius: 10px; background: rgba(255,255,255,0.06);
+    display: flex; align-items: center; justify-content: center; font-size: 0.8rem;
+  }
+  .setup-step.active .setup-step-num { background: linear-gradient(135deg, var(--accent), var(--accent-purple)); color: #000; font-weight: 800; }
+
+  .setup-main { flex: 1; padding: 44px; display: flex; flex-direction: column; justify-content: space-between; }
+  .setup-page { display: none; flex-direction: column; gap: 20px; }
+  .setup-page.active { display: flex; }
+
+  /* MAIN DESKTOP SHELL */
+  #desktop-screen { background: var(--bg-wallpaper) center/cover no-repeat; z-index: 100; justify-content: flex-start; }
+
+  /* Top System Bar */
+  .top-bar {
+    width: 100%; height: 42px; background: var(--glass-topbar); backdrop-filter: var(--glass-blur);
+    border-bottom: 1px solid var(--glass-border); display: flex; align-items: center; justify-content: space-between;
+    padding: 0 20px; z-index: 8000;
+  }
+  .top-bar-section { display: flex; align-items: center; gap: 18px; }
+  .brand-logo { font-weight: 800; font-size: 0.92rem; display: flex; align-items: center; gap: 10px; cursor: pointer; letter-spacing: 0.08em; }
+  .brand-logo::before { content: ''; width: 8px; height: 8px; background: var(--accent); border-radius: 50%; box-shadow: 0 0 12px var(--accent); }
+  .top-item { font-size: 0.82rem; color: var(--text-sub); cursor: pointer; display: flex; align-items: center; gap: 6px; font-weight: 600; }
+  .top-item:hover { color: var(--text-main); }
+
+  /* Desktop Canvas & Clean Grid */
+  .desktop-area { flex: 1; width: 100%; position: relative; overflow: hidden; padding: 24px; }
+  .desktop-grid {
+    position: absolute; top: 24px; left: 24px; bottom: 90px;
+    display: flex; flex-direction: column; flex-wrap: wrap; gap: 20px; align-content: flex-start;
+  }
+  .d-icon {
+    width: 90px; display: flex; flex-direction: column; align-items: center; gap: 6px;
+    cursor: pointer; font-size: 0.78rem; text-align: center; text-shadow: 0 2px 6px rgba(0,0,0,0.9);
+    padding: 8px; border-radius: 14px; border: 1px solid transparent; font-weight: 500;
+    transition: transform 0.2s var(--anim-curve), background-color 0.2s;
+  }
+  .d-icon:hover { background: rgba(255, 255, 255, 0.12); border-color: rgba(255, 255, 255, 0.25); transform: translateY(-2px); }
+  .d-icon.selected { background: rgba(0, 242, 254, 0.2); border-color: var(--accent); }
+  .d-icon-box { font-size: 2.3rem; filter: drop-shadow(0 6px 12px rgba(0,0,0,0.5)); }
+
+  /* STRICT ZERO-ANIMATION TASKBAR (DOCK) */
+  .dock-wrapper {
+    position: absolute; bottom: 14px; left: 50%; transform: translateX(-50%);
+    background: var(--glass-dock); backdrop-filter: var(--glass-blur);
+    border: 1px solid var(--glass-border); border-radius: var(--radius-dock);
+    padding: 8px 16px; display: flex; align-items: center; gap: 12px; z-index: 8500;
+    box-shadow: var(--glass-shadow);
+    /* Absolutely NO transitions or animations */
+    transition: none !important;
+    animation: none !important;
+  }
+  .dock-launcher-btn {
+    width: 48px; height: 48px; border-radius: 16px;
+    background: linear-gradient(135deg, var(--accent), var(--accent-purple));
+    border: none; display: flex; align-items: center; justify-content: center;
+    font-size: 1.4rem; font-weight: 800; color: #030508; cursor: pointer;
+    box-shadow: 0 0 20px var(--accent-glow);
+    /* Absolutely NO transitions or animations */
+    transition: none !important;
+    animation: none !important;
+    transform: none !important;
+  }
+  .dock-launcher-btn:hover {
+    transform: none !important;
+  }
+
+  .dock-divider { width: 1px; height: 28px; background: var(--glass-border); margin: 0 2px; }
+
+  .dock-item {
+    width: 48px; height: 48px; border-radius: 16px; background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.12); display: flex; align-items: center; justify-content: center;
+    font-size: 1.5rem; cursor: pointer; position: relative;
+    /* Absolutely NO transitions or animations */
+    transition: none !important;
+    animation: none !important;
+    transform: none !important;
+  }
+  .dock-item:hover {
+    border-color: var(--accent); background: rgba(255,255,255,0.18);
+    transform: none !important;
+  }
+  .dock-item.active::after {
+    content: ''; position: absolute; bottom: -5px; width: 6px; height: 6px; border-radius: 50%;
+    background: var(--accent); box-shadow: 0 0 10px var(--accent);
+  }
+
+  /* ELEGANT ANIMATION FOR LAUNCH MENU PANEL & WINDOWS */
+  .launch-hub-panel {
+    position: absolute; bottom: 82px; left: 50%; transform: translateX(-50%) translateY(20px) scale(0.96);
+    width: 660px; height: 520px; background: var(--glass-dialog); backdrop-filter: var(--glass-blur);
+    border: 1px solid var(--glass-border); border-radius: 26px; padding: 24px;
+    box-shadow: var(--glass-shadow); display: flex; flex-direction: column; gap: 20px; z-index: 8600;
+    opacity: 0; pointer-events: none;
+    transition: opacity 0.25s var(--anim-curve), transform 0.25s var(--anim-curve);
+  }
+  .launch-hub-panel.open { opacity: 1; pointer-events: auto; transform: translateX(-50%) translateY(0) scale(1); }
+
+  .hub-header { display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--glass-border); padding-bottom: 14px; }
+  .hub-user { display: flex; align-items: center; gap: 14px; }
+  .hub-avatar {
+    width: 42px; height: 42px; border-radius: 14px;
+    background: linear-gradient(135deg, var(--accent), var(--accent-purple));
+    display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 1.1rem; color: #000;
+  }
+  .hub-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 16px; overflow-y: auto; flex: 1; align-content: start; }
+
+  /* Context Menu Smooth Scale Animation */
+  .context-menu {
+    position: absolute; width: 210px; background: var(--glass-menu); backdrop-filter: var(--glass-blur);
+    border: 1px solid var(--glass-border); border-radius: 16px; padding: 8px;
+    box-shadow: 0 20px 40px rgba(0,0,0,0.65); z-index: 9900; display: flex; flex-direction: column; gap: 4px;
+    opacity: 0; pointer-events: none; transform: scale(0.92);
+    transition: opacity 0.2s var(--anim-curve), transform 0.2s var(--anim-curve);
+  }
+  .context-menu.open { opacity: 1; pointer-events: auto; transform: scale(1); }
+  .context-item {
+    padding: 9px 14px; border-radius: 10px; font-size: 0.84rem; color: var(--text-main);
+    cursor: pointer; display: flex; align-items: center; gap: 10px; font-weight: 500;
+    transition: background-color 0.15s, color 0.15s;
+  }
+  .context-item:hover { background: rgba(255,255,255,0.15); color: var(--accent); }
+
+  /* Notification Center Sliding Animation */
+  .notification-center {
+    position: absolute; top: 42px; right: -380px; bottom: 0; width: 360px;
+    background: var(--glass-menu); backdrop-filter: var(--glass-blur);
+    border-left: 1px solid var(--glass-border); padding: 24px; display: flex; flex-direction: column; gap: 20px;
+    z-index: 8400; box-shadow: -15px 0 40px rgba(0,0,0,0.6);
+    transition: right 0.3s var(--anim-curve);
+  }
+  .notification-center.open { right: 0; }
+
+  /* Smooth Window Open / Close Animations */
+  .os-window {
+    position: absolute; background: var(--glass-window); backdrop-filter: var(--glass-blur);
+    border: 1px solid var(--glass-border); border-radius: var(--radius-window);
+    box-shadow: var(--glass-shadow); display: flex; flex-direction: column; overflow: hidden;
+    min-width: 500px; min-height: 350px;
+    opacity: 0; pointer-events: none; transform: scale(0.92) translateY(15px);
+    transition: opacity 0.25s var(--anim-curve), transform 0.25s var(--anim-curve), border-color 0.2s ease;
+  }
+  .os-window.open-active { opacity: 1; pointer-events: auto; transform: scale(1) translateY(0); }
+  .os-window.unfocused { background: var(--glass-window-unfocused); border-color: rgba(255,255,255,0.08); }
+  .os-window.focused { border-color: var(--glass-border-focused); box-shadow: 0 35px 90px rgba(0,0,0,0.85); }
+  .os-window.minimized { opacity: 0 !important; pointer-events: none !important; transform: scale(0.85) translateY(40px) !important; }
+  .os-window.fullscreen { top: 42px !important; left: 0 !important; width: 100% !important; height: calc(100% - 42px) !important; border-radius: 0; }
+
+  .window-topbar {
+    height: 44px; background: rgba(255,255,255,0.04); border-bottom: 1px solid var(--glass-border);
+    display: flex; align-items: center; justify-content: space-between; padding: 0 18px; cursor: move; flex-shrink: 0;
+  }
+  .window-title { font-size: 0.88rem; font-weight: 600; display: flex; align-items: center; gap: 10px; }
+  
+  .win-controls-pills { display: flex; align-items: center; gap: 4px; background: rgba(255,255,255,0.08); padding: 4px 8px; border-radius: 20px; border: 1px solid var(--glass-border); }
+  .win-pill-btn {
+    padding: 3px 10px; border-radius: 12px; font-size: 0.75rem; font-weight: 700; cursor: pointer;
+    color: var(--text-sub); transition: background-color 0.15s, color 0.15s;
+  }
+  .win-pill-btn:hover { color: #fff; background: rgba(255,255,255,0.2); }
+  .pill-close:hover { background: rgba(239, 68, 68, 0.6); color: #fca5a5; }
+
+  .window-body { flex: 1; overflow: auto; position: relative; background: rgba(4, 6, 10, 0.6); display: flex; flex-direction: column; }
+
+  /* APP SURFACES & UNCHOPPED ROOMY LAYOUTS */
+  .os-split-layout { display: flex; height: 100%; width: 100%; flex: 1; overflow: hidden; }
+  .os-sidebar {
+    width: 210px; background: rgba(0, 0, 0, 0.4); border-right: 1px solid var(--glass-border);
+    padding: 16px; display: flex; flex-direction: column; gap: 8px; flex-shrink: 0; overflow-y: auto;
+  }
+  .os-nav-item {
+    padding: 10px 14px; border-radius: 12px; font-size: 0.85rem; color: var(--text-sub);
+    cursor: pointer; display: flex; align-items: center; gap: 10px; font-weight: 600;
+    transition: background-color 0.15s, color 0.15s;
+  }
+  .os-nav-item.active, .os-nav-item:hover { background: rgba(255, 255, 255, 0.12); color: var(--text-main); }
+  .os-content-pane { flex: 1; padding: 22px; overflow-y: auto; height: 100%; display: flex; flex-direction: column; }
+
+  /* RICH SETTINGS STYLES */
+  .settings-section { display: none; flex-direction: column; gap: 20px; }
+  .settings-section.active { display: flex; }
+  .setting-row { display: flex; align-items: center; justify-content: space-between; padding: 14px 18px; background: rgba(255,255,255,0.04); border: 1px solid var(--glass-border); border-radius: 14px; }
+  .setting-label { display: flex; flex-direction: column; gap: 4px; }
+  .setting-title { font-size: 0.9rem; font-weight: 600; }
+  .setting-desc { font-size: 0.8rem; color: var(--text-sub); }
+
+  .wp-gallery { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-top: 10px; }
+  .wp-thumb { height: 75px; border-radius: 12px; border: 2px solid transparent; cursor: pointer; background-size: cover; background-position: center; transition: border-color 0.2s, transform 0.2s; }
+  .wp-thumb:hover, .wp-thumb.active { border-color: var(--accent); transform: scale(1.02); }
+
+  /* APP SURFACES */
+  .stage-canvas { width: 100%; height: 100%; position: relative; background: #020305; overflow: hidden; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+  .laser-beam { position: absolute; top: 0; width: 4px; height: 100%; opacity: 0.85; transform-origin: top center; animation: laserSweep 2s infinite alternate ease-in-out; }
+  @keyframes laserSweep { 0% { transform: rotate(-45deg); } 100% { transform: rotate(45deg); } }
+  .stage-crowd { position: absolute; bottom: 0; width: 100%; height: 90px; background: repeating-linear-gradient(90deg, #111, #111 10px, #222 10px, #222 20px); opacity: 0.85; }
+
+  .lucky-box { width: 130px; height: 130px; background: linear-gradient(135deg, #f59e0b, #ef4444); border-radius: 24px; display: flex; align-items: center; justify-content: center; font-size: 4rem; cursor: pointer; box-shadow: 0 0 35px rgba(245, 158, 11, 0.5); }
+
+  .files-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 16px; align-content: start; }
+  .file-item { border: 1px solid transparent; border-radius: 12px; padding: 14px; display: flex; flex-direction: column; align-items: center; gap: 8px; font-size: 0.8rem; text-align: center; cursor: pointer; transition: background-color 0.15s, border-color 0.15s; }
+  .file-item:hover { border-color: var(--glass-border); background: rgba(255,255,255,0.08); }
+
+  .term-body { background: rgba(2, 3, 5, 0.95); height: 100%; padding: 18px; font-family: var(--font-code); font-size: 0.88rem; color: var(--accent); overflow-y: auto; flex: 1; }
+  .term-output { white-space: pre-wrap; line-height: 1.6; margin-bottom: 10px; color: #a7f3d0; }
+  .term-row { display: flex; gap: 10px; align-items: center; }
+  .term-input { flex: 1; background: transparent; border: none; outline: none; color: #fff; font-family: var(--font-code); font-size: 0.88rem; }
+
+  .code-wrap { display: flex; flex-direction: column; height: 100%; flex: 1; }
+  .code-toolbar { padding: 10px 16px; background: rgba(0,0,0,0.35); border-bottom: 1px solid var(--glass-border); display: flex; gap: 12px; }
+  .code-area { flex: 1; background: rgba(2, 3, 5, 0.75); border: none; outline: none; color: #f0f6fc; font-family: var(--font-code); font-size: 0.9rem; padding: 18px; resize: none; line-height: 1.5; }
+  .code-console { height: 110px; background: rgba(0,0,0,0.95); border-top: 1px solid var(--glass-border); padding: 10px 14px; font-family: var(--font-code); font-size: 0.8rem; color: var(--accent); overflow-y: auto; }
+
+  .browser-bar { padding: 8px 14px; background: rgba(0,0,0,0.35); border-bottom: 1px solid var(--glass-border); display: flex; gap: 10px; }
+
+  /* CALCULATOR SURFACE */
+  .calc-wrap { display: flex; flex-direction: column; height: 100%; padding: 20px; gap: 14px; flex: 1; }
+  .calc-disp { background: rgba(0,0,0,0.65); border: 1px solid var(--glass-border); border-radius: 14px; font-size: 2.2rem; font-family: var(--font-code); color: #fff; padding: 16px; text-align: right; }
+  .calc-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; flex: 1; }
+  .calc-grid button { font-size: 1.1rem; border-radius: 12px; }
+
+  /* SEARCH OVERLAY */
+  .search-overlay {
+    position: absolute; top: 12%; left: 50%; transform: translateX(-50%) translateY(-10px) scale(0.96);
+    width: 580px; background: var(--glass-dialog); backdrop-filter: var(--glass-blur);
+    border: 1px solid var(--glass-border); border-radius: 22px; padding: 18px;
+    box-shadow: var(--glass-shadow); z-index: 9500; display: flex; flex-direction: column;
+    opacity: 0; pointer-events: none;
+    transition: opacity 0.2s var(--anim-curve), transform 0.2s var(--anim-curve);
+  }
+  .search-overlay.open { opacity: 1; pointer-events: auto; transform: translateX(-50%) translateY(0) scale(1); }
+</style>
+</head>
+<body>
+
+  <!-- 1. BOOT SCREEN -->
+  <div id="boot-screen" class="os-screen">
+    <div class="boot-logo-orb">E</div>
+    <h1 style="font-family:var(--font-ui); font-size:2.2rem; font-weight:800; margin-top:18px; letter-spacing:0.05em;">ENFROK OS 5.1</h1>
+    <div style="margin-top:18px; font-family:var(--font-code); font-size:0.85rem; color:var(--text-sub);" id="bootLog">Loading Systems...</div>
+  </div>
+
+  <!-- 2. SETUP WIZARD -->
+  <div id="setup-screen" class="os-screen hidden">
+    <div class="setup-card">
+      <div class="setup-sidebar">
+        <div class="setup-step active" id="step1"><div class="setup-step-num">1</div> Account</div>
+        <div class="setup-step" id="step2"><div class="setup-step-num">2</div> Personalize</div>
+        <div class="setup-step" id="step3"><div class="setup-step-num">3</div> Deployment</div>
+      </div>
+      <div class="setup-main">
+        <div class="setup-page active" id="page1">
+          <h2>Welcome to ENFROK OS 5.1</h2>
+          <p>Your web. Your workspace. Your OS. Setup your administrative environment.</p>
+          <div style="margin-top:10px;">
+            <label style="font-size:0.85rem; color:var(--text-sub);">Administrator Username</label>
+            <input type="text" class="input-ui" id="setupUsername" value="Developer" style="margin-top:8px;" />
+          </div>
+          <div style="display:flex; justify-content:flex-end; margin-top:auto;">
+            <button class="btn-ui btn-accent" onclick="navSetup(2)">Continue →</button>
+          </div>
+        </div>
+        <div class="setup-page" id="page2">
+          <h2>Appearance & Desktop Wallpaper</h2>
+          <p>Select your primary desktop background wallpaper.</p>
+          <div class="wp-gallery" id="setupWpGrid" style="grid-template-columns: repeat(4, 1fr); max-height: 210px; overflow-y: auto;"></div>
+          <div style="display:flex; justify-content:space-between; margin-top:auto;">
+            <button class="btn-ui" onclick="navSetup(1)">Back</button>
+            <button class="btn-ui btn-accent" onclick="navSetup(3); startInstallation();">Deploy System →</button>
+          </div>
+        </div>
+        <div class="setup-page" id="page3">
+          <h2>Deploying High Performance Kernel</h2>
+          <p id="installDesc">Configuring file system root storage and dynamic features...</p>
+          <div style="margin-top:30px;">
+            <div style="width:100%; height:8px; background:rgba(255,255,255,0.06); border-radius:999px; overflow:hidden;">
+              <div id="installBar" style="width:0%; height:100%; background:var(--accent);"></div>
+            </div>
+            <div id="installPct" style="font-family:var(--font-code); font-size:0.85rem; color:var(--accent); margin-top:12px;">0%</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 3. MAIN DESKTOP ENVIRONMENT -->
+  <div id="desktop-screen" class="os-screen hidden" onclick="closeContextMenus()">
+    
+    <!-- Top System Bar -->
+    <div class="top-bar">
+      <div class="top-bar-section">
+        <div class="brand-logo" onclick="toggleLaunchHub()">ENFROK OS</div>
+        <div class="top-item" onclick="openWindow('documentCore')">Workspace</div>
+      </div>
+      <div class="top-bar-section">
+        <div class="top-item" onclick="toggleSearch()">🔍 Search</div>
+        <div class="top-item" id="sysRam">3.2 / 12 GB RAM</div>
+        <div class="top-item" id="sysBattery">🔋 100%</div>
+        <div class="top-item" id="sysAudioMute" onclick="toggleMuteAudio()">🔊 Audio</div>
+        <div class="top-item" onclick="toggleNotifications()">🔔 <span id="sysClock">12:00 PM</span></div>
+      </div>
+    </div>
+
+    <!-- Main Desktop Canvas -->
+    <div class="desktop-area" id="desktopArea" oncontextmenu="openContextMenu(event)">
+      <div class="desktop-grid" id="desktopGrid"></div>
+
+      <!-- APP 1: FILES / CORE STORAGE -->
+      <div class="os-window" id="documentCore" style="width: 800px; height: 520px; top: 40px; left: 120px;">
+        <div class="window-topbar" onmousedown="dragWindow(event, 'documentCore')">
+          <div class="window-title">📁 Files — Root Storage</div>
+          <div class="win-controls-pills">
+            <span class="win-pill-btn" onclick="minimizeWindow('documentCore')">─</span>
+            <span class="win-pill-btn" onclick="toggleFullscreen('documentCore')">▢</span>
+            <span class="win-pill-btn pill-close" style="cursor:not-allowed; opacity:0.4;">✕</span>
+          </div>
+        </div>
+        <div class="window-body">
+          <div class="os-split-layout">
+            <div class="os-sidebar">
+              <div class="os-nav-item active">Root Storage</div>
+              <div class="os-nav-item">System Drivers</div>
+              <div class="os-nav-item">User Projects</div>
+            </div>
+            <div class="os-content-pane">
+              <div class="files-grid" id="folderView"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- APP 2: TERMINAL -->
+      <div class="os-window" id="terminalApp" style="width: 640px; height: 400px; top: 70px; left: 180px;">
+        <div class="window-topbar" onmousedown="dragWindow(event, 'terminalApp')">
+          <div class="window-title">⚡ Command Console</div>
+          <div class="win-controls-pills">
+            <span class="win-pill-btn" onclick="minimizeWindow('terminalApp')">─</span>
+            <span class="win-pill-btn" onclick="toggleFullscreen('terminalApp')">▢</span>
+            <span class="win-pill-btn pill-close" onclick="closeWindow('terminalApp')">✕</span>
+          </div>
+        </div>
+        <div class="window-body">
+          <div class="term-body" id="termContainer">
+            <div class="term-output" id="termOutput">ENFROK OS Command Console v5.1
+Type 'help' to view available system commands.</div>
+            <div class="term-row">
+              <span style="color:var(--accent); font-weight:600;">enfrok@root:~$</span>
+              <input type="text" class="term-input" id="termInput" onkeydown="handleTermCmd(event)" />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- APP 3: CODE STUDIO -->
+      <div class="os-window" id="codeStudio" style="width: 760px; height: 500px; top: 50px; left: 220px;">
+        <div class="window-topbar" onmousedown="dragWindow(event, 'codeStudio')">
+          <div class="window-title">👨‍💻 Studio Code Editor</div>
+          <div class="win-controls-pills">
+            <span class="win-pill-btn" onclick="minimizeWindow('codeStudio')">─</span>
+            <span class="win-pill-btn" onclick="toggleFullscreen('codeStudio')">▢</span>
+            <span class="win-pill-btn pill-close" onclick="closeWindow('codeStudio')">✕</span>
+          </div>
+        </div>
+        <div class="window-body">
+          <div class="code-wrap">
+            <div class="code-toolbar">
+              <button class="btn-ui btn-accent" style="padding:5px 14px; font-size:0.8rem;" onclick="runCode()">▶ Run Script</button>
+              <span style="font-size:0.82rem; color:var(--text-sub); align-self:center;">Script_Main.luau</span>
+            </div>
+            <textarea class="code-area" id="codeInput">-- ENFROK OS Luau Environment
+local Engine = {}
+Engine.Version = 5.1
+Engine.RAM = 12
+
+function Engine.Init()
+    print("[ENFROK CORE]: Engine active with clean window animations.")
+    return "Status: Optimal"
+end
+
+print(Engine.Init())</textarea>
+            <div class="code-console" id="codeLog">-- Output Console --</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- APP 4: BROWSER -->
+      <div class="os-window" id="browserApp" style="width: 760px; height: 500px; top: 60px; left: 240px;">
+        <div class="window-topbar" onmousedown="dragWindow(event, 'browserApp')">
+          <div class="window-title">🌐 Web Browser</div>
+          <div class="win-controls-pills">
+            <span class="win-pill-btn" onclick="minimizeWindow('browserApp')">─</span>
+            <span class="win-pill-btn" onclick="toggleFullscreen('browserApp')">▢</span>
+            <span class="win-pill-btn pill-close" onclick="closeWindow('browserApp')">✕</span>
+          </div>
+        </div>
+        <div class="window-body" style="display:flex; flex-direction:column; height:100%;">
+          <div class="browser-bar">
+            <input type="text" id="browserUrl" class="input-ui" value="https://www.wikipedia.org" style="padding:6px 12px; font-size:0.85rem;" onkeydown="if(event.key==='Enter') navBrowser()" />
+            <button class="btn-ui btn-accent" style="padding:6px 14px; font-size:0.8rem;" onclick="navBrowser()">Go</button>
+          </div>
+          <iframe id="browserIframe" src="https://www.wikipedia.org" style="flex:1; border:none; background:#fff;"></iframe>
+        </div>
+      </div>
+
+      <!-- APP 5: CALCULATOR -->
+      <div class="os-window" id="calcApp" style="width: 380px; height: 480px; top: 80px; left: 280px;">
+        <div class="window-topbar" onmousedown="dragWindow(event, 'calcApp')">
+          <div class="window-title">🧮 Calculator</div>
+          <div class="win-controls-pills">
+            <span class="win-pill-btn" onclick="minimizeWindow('calcApp')">─</span>
+            <span class="win-pill-btn pill-close" onclick="closeWindow('calcApp')">✕</span>
+          </div>
+        </div>
+        <div class="window-body">
+          <div class="calc-wrap">
+            <input type="text" class="calc-disp" id="calcDisp" value="0" readonly />
+            <div class="calc-grid">
+              <button class="btn-ui" onclick="calcNum('7')">7</button>
+              <button class="btn-ui" onclick="calcNum('8')">8</button>
+              <button class="btn-ui" onclick="calcNum('9')">9</button>
+              <button class="btn-ui" onclick="calcNum('+')">+</button>
+              <button class="btn-ui" onclick="calcNum('4')">4</button>
+              <button class="btn-ui" onclick="calcNum('5')">5</button>
+              <button class="btn-ui" onclick="calcNum('6')">6</button>
+              <button class="btn-ui" onclick="calcNum('-')">-</button>
+              <button class="btn-ui" onclick="calcNum('1')">1</button>
+              <button class="btn-ui" onclick="calcNum('2')">2</button>
+              <button class="btn-ui" onclick="calcNum('3')">3</button>
+              <button class="btn-ui" onclick="calcNum('*')">*</button>
+              <button class="btn-ui" onclick="calcClear()">C</button>
+              <button class="btn-ui" onclick="calcNum('0')">0</button>
+              <button class="btn-ui btn-accent" onclick="calcEval()">=</button>
+              <button class="btn-ui" onclick="calcNum('/')">/</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- APP 6: NOTES -->
+      <div class="os-window" id="notesApp" style="width: 580px; height: 440px; top: 80px; left: 260px;">
+        <div class="window-topbar" onmousedown="dragWindow(event, 'notesApp')">
+          <div class="window-title">📝 System Notes</div>
+          <div class="win-controls-pills">
+            <span class="win-pill-btn" onclick="minimizeWindow('notesApp')">─</span>
+            <span class="win-pill-btn" onclick="toggleFullscreen('notesApp')">▢</span>
+            <span class="win-pill-btn pill-close" onclick="closeWindow('notesApp')">✕</span>
+          </div>
+        </div>
+        <div class="window-body" style="padding:18px; display:flex; flex-direction:column; gap:12px;">
+          <textarea class="input-ui" id="notesArea" style="flex:1; resize:none; font-size:0.92rem; line-height:1.6;" placeholder="Type persistent notes here..." oninput="saveNotes()"></textarea>
+        </div>
+      </div>
+
+      <!-- APP 7: CONCERT -->
+      <div class="os-window" id="concertApp" style="width: 660px; height: 440px; top: 70px; left: 200px;">
+        <div class="window-topbar" onmousedown="dragWindow(event, 'concertApp')">
+          <div class="window-title">🎤 RappingConcert — Laser FX</div>
+          <div class="win-controls-pills">
+            <span class="win-pill-btn" onclick="minimizeWindow('concertApp')">─</span>
+            <span class="win-pill-btn" onclick="toggleFullscreen('concertApp')">▢</span>
+            <span class="win-pill-btn pill-close" onclick="closeWindow('concertApp')">✕</span>
+          </div>
+        </div>
+        <div class="window-body">
+          <div class="stage-canvas" id="stageCanvas">
+            <div class="laser-beam" style="left:20%; background:#00f2fe;"></div>
+            <div class="laser-beam" style="left:50%; background:#9d4edd; animation-delay:0.5s;"></div>
+            <div class="laser-beam" style="left:80%; background:#ff007f; animation-delay:1s;"></div>
+            <div style="font-size:3.5rem; z-index:10;">🎤 🎧 🎸</div>
+            <div style="margin-top:16px; font-weight:700; font-size:1.15rem; color:#fff; z-index:10;" id="concertStatus">Live Concert Light Show Active</div>
+            <div class="stage-crowd"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- APP 8: LUCKY BLOCK -->
+      <div class="os-window" id="luckyApp" style="width: 520px; height: 420px; top: 80px; left: 230px;">
+        <div class="window-topbar" onmousedown="dragWindow(event, 'luckyApp')">
+          <div class="window-title">📦 Mythic Lucky Block</div>
+          <div class="win-controls-pills">
+            <span class="win-pill-btn" onclick="minimizeWindow('luckyApp')">─</span>
+            <span class="win-pill-btn pill-close" onclick="closeWindow('luckyApp')">✕</span>
+          </div>
+        </div>
+        <div class="window-body" style="display:flex; flex-direction:column; align-items:center; justify-content:center; gap:22px; padding:24px;">
+          <div class="lucky-box" onclick="openLuckyBlock()" id="luckyBox">❓</div>
+          <div style="font-weight:700; font-size:1.15rem; text-align:center;" id="luckyResult">Click the block to test your luck!</div>
+        </div>
+      </div>
+
+      <!-- APP 9: SETTINGS -->
+      <div class="os-window" id="settingsApp" style="width: 780px; height: 520px; top: 50px; left: 220px;">
+        <div class="window-topbar" onmousedown="dragWindow(event, 'settingsApp')">
+          <div class="window-title">⚙️ Control Center & Settings</div>
+          <div class="win-controls-pills">
+            <span class="win-pill-btn" onclick="minimizeWindow('settingsApp')">─</span>
+            <span class="win-pill-btn" onclick="toggleFullscreen('settingsApp')">▢</span>
+            <span class="win-pill-btn pill-close" onclick="closeWindow('settingsApp')">✕</span>
+          </div>
+        </div>
+        <div class="window-body">
+          <div class="os-split-layout">
+            <div class="os-sidebar">
+              <div class="os-nav-item active" onclick="switchSettingsTab('appearanceTab', this)">🎨 Personalize</div>
+              <div class="os-nav-item" onclick="switchSettingsTab('displayTab', this)">🖥️ Display & Glass</div>
+              <div class="os-nav-item" onclick="switchSettingsTab('systemTab', this)">💾 System & Data</div>
+            </div>
+            <div class="os-content-pane">
+              <div class="settings-section active" id="appearanceTab">
+                <h3 style="font-size:1.05rem; font-weight:700;">30+ Wallpaper Gallery</h3>
+                <div class="wp-gallery" id="settingsWpGrid" style="max-height:240px; overflow-y:auto;"></div>
+              </div>
+              <div class="settings-section" id="displayTab">
+                <h3 style="font-size:1.05rem; font-weight:700;">Glass Transparency & Effects</h3>
+                <div class="setting-row">
+                  <div class="setting-label">
+                    <span class="setting-title">Glass Blur Intensity</span>
+                    <span class="setting-desc">Adjust backdrop filter strength across windows.</span>
+                  </div>
+                  <input type="range" min="10" max="60" value="35" onchange="setGlassBlur(this.value)" />
+                </div>
+              </div>
+              <div class="settings-section" id="systemTab">
+                <h3 style="font-size:1.05rem; font-weight:700;">Virtual Hardware Status</h3>
+                <div class="setting-row">
+                  <div class="setting-label">
+                    <span class="setting-title">Allocated Virtual RAM</span>
+                    <span class="setting-desc" id="settingsRamText">3.2 / 12.0 GB Dynamic Engine</span>
+                  </div>
+                </div>
+                <div style="border-top:1px solid var(--glass-border); padding-top:18px; margin-top:12px;">
+                  <button class="btn-ui btn-danger" onclick="eraseSystemData()">⚠️ Reset ENFROK OS</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- APP 10: 3D MATRIX RAIN CANVAS -->
+      <div class="os-window" id="matrixApp" style="width: 600px; height: 420px; top: 60px; left: 180px;">
+        <div class="window-topbar" onmousedown="dragWindow(event, 'matrixApp')">
+          <div class="window-title">🟢 Matrix Cyber Rain</div>
+          <div class="win-controls-pills">
+            <span class="win-pill-btn" onclick="minimizeWindow('matrixApp')">─</span>
+            <span class="win-pill-btn pill-close" onclick="closeWindow('matrixApp')">✕</span>
+          </div>
+        </div>
+        <div class="window-body">
+          <canvas id="matrixCanvas" style="width:100%; height:100%; background:#000;"></canvas>
+        </div>
+      </div>
+
+      <!-- APP 11: ADMIN PERMISSION CONTROLLER PANEL -->
+      <div class="os-window" id="adminApp" style="width: 580px; height: 440px; top: 70px; left: 220px;">
+        <div class="window-topbar" onmousedown="dragWindow(event, 'adminApp')">
+          <div class="window-title">👑 Admin Control System</div>
+          <div class="win-controls-pills">
+            <span class="win-pill-btn" onclick="minimizeWindow('adminApp')">─</span>
+            <span class="win-pill-btn pill-close" onclick="closeWindow('adminApp')">✕</span>
+          </div>
+        </div>
+        <div class="window-body" style="padding:22px; display:flex; flex-direction:column; gap:16px;">
+          <div style="font-size:0.88rem; color:var(--text-sub);">Super Admin ID: <b>8802459972</b></div>
+          <div style="display:grid; grid-template-columns:repeat(2, 1fr); gap:12px;">
+            <button class="btn-ui" onclick="adminCmd('Fly Mode Activated')">🚀 Toggle Fly Mode</button>
+            <button class="btn-ui" onclick="adminCmd('Invisibility Shield ON')">👻 Toggle Invisibility</button>
+            <button class="btn-ui" onclick="adminCmd('Plot Divine Theme Forced')">🌟 Divine Plot Force</button>
+            <button class="btn-ui" onclick="adminCmd('Plot Radioactive Forced')">☢️ Radioactive Plot Force</button>
+            <button class="btn-ui btn-danger" onclick="adminCmd('Ban Enforcement Cleaned')">🔨 Ban Enforcement</button>
+            <button class="btn-ui btn-accent" onclick="adminCmd('Co-Owner Statue Erected')">🗿 Spawn Co-Owner Statue</button>
+          </div>
+          <div id="adminLog" style="font-family:var(--font-code); font-size:0.8rem; color:var(--accent); padding:12px; background:rgba(0,0,0,0.5); border-radius:10px; height:100px; overflow-y:auto;">System Log Ready.</div>
+        </div>
+      </div>
+
+      <!-- APP 12: HARDWARE SYSTEM MONITOR -->
+      <div class="os-window" id="hardwareApp" style="width: 540px; height: 380px; top: 90px; left: 260px;">
+        <div class="window-topbar" onmousedown="dragWindow(event, 'hardwareApp')">
+          <div class="window-title">📊 System Hardware Monitor</div>
+          <div class="win-controls-pills">
+            <span class="win-pill-btn" onclick="minimizeWindow('hardwareApp')">─</span>
+            <span class="win-pill-btn pill-close" onclick="closeWindow('hardwareApp')">✕</span>
+          </div>
+        </div>
+        <div class="window-body" style="padding:22px; display:flex; flex-direction:column; gap:16px;">
+          <div>
+            <div style="display:flex; justify-content:space-between; font-size:0.85rem; margin-bottom:6px;">
+              <span>CPU Core Usage</span><span id="cpuUsageVal">18%</span>
+            </div>
+            <div style="width:100%; height:8px; background:rgba(255,255,255,0.1); border-radius:99px; overflow:hidden;">
+              <div id="cpuBar" style="width:18%; height:100%; background:var(--accent);"></div>
+            </div>
+          </div>
+          <div>
+            <div style="display:flex; justify-content:space-between; font-size:0.85rem; margin-bottom:6px;">
+              <span>GPU Renderer Load</span><span id="gpuUsageVal">24%</span>
+            </div>
+            <div style="width:100%; height:8px; background:rgba(255,255,255,0.1); border-radius:99px; overflow:hidden;">
+              <div id="gpuBar" style="width:24%; height:100%; background:var(--accent-purple);"></div>
+            </div>
+          </div>
+          <div style="padding:14px; background:rgba(255,255,255,0.04); border-radius:12px; font-size:0.82rem; color:var(--text-sub);">
+            Device Ecosystem: macOS / WebOS Glass Engine Core v5.1
+          </div>
+        </div>
+      </div>
+
+      <!-- APP 13: AUDIO SOUNDBOARD -->
+      <div class="os-window" id="soundboardApp" style="width: 500px; height: 380px; top: 100px; left: 280px;">
+        <div class="window-topbar" onmousedown="dragWindow(event, 'soundboardApp')">
+          <div class="window-title">🔊 Audio Soundboard & FX</div>
+          <div class="win-controls-pills">
+            <span class="win-pill-btn" onclick="minimizeWindow('soundboardApp')">─</span>
+            <span class="win-pill-btn pill-close" onclick="closeWindow('soundboardApp')">✕</span>
+          </div>
+        </div>
+        <div class="window-body" style="padding:20px; display:grid; grid-template-columns:repeat(3, 1fr); gap:12px;">
+          <button class="btn-ui" onclick="playBeep(440)">🔊 Synth Beep</button>
+          <button class="btn-ui" onclick="playBeep(880)">🎶 High Laser</button>
+          <button class="btn-ui" onclick="playBeep(220)">🎵 Bass Drop</button>
+          <button class="btn-ui" onclick="playBeep(600)">🔔 Coin Sound</button>
+          <button class="btn-ui" onclick="playBeep(1200)">⚡ Win Chime</button>
+          <button class="btn-ui btn-accent" onclick="playBeep(1500)">🎤 Rap Horn</button>
+        </div>
+      </div>
+
+      <!-- APP 14: PAINT CANVAS APP -->
+      <div class="os-window" id="paintApp" style="width: 620px; height: 440px; top: 60px; left: 200px;">
+        <div class="window-topbar" onmousedown="dragWindow(event, 'paintApp')">
+          <div class="window-title">🎨 Canvas Paint</div>
+          <div class="win-controls-pills">
+            <span class="win-pill-btn" onclick="minimizeWindow('paintApp')">─</span>
+            <span class="win-pill-btn pill-close" onclick="closeWindow('paintApp')">✕</span>
+          </div>
+        </div>
+        <div class="window-body">
+          <div style="padding:8px; background:rgba(0,0,0,0.3); border-bottom:1px solid var(--glass-border); display:flex; gap:10px;">
+            <input type="color" id="paintColor" value="#00f2fe" style="background:none; border:none; cursor:pointer;" />
+            <button class="btn-ui" onclick="clearPaint()">Clear</button>
+          </div>
+          <canvas id="paintCanvas" style="flex:1; background:#000; cursor:crosshair;"></canvas>
+        </div>
+      </div>
+
+      <!-- APP 15: STOPWATCH & TIMER -->
+      <div class="os-window" id="timerApp" style="width: 440px; height: 340px; top: 110px; left: 320px;">
+        <div class="window-topbar" onmousedown="dragWindow(event, 'timerApp')">
+          <div class="window-title">⏱️ Timer & Stopwatch</div>
+          <div class="win-controls-pills">
+            <span class="win-pill-btn" onclick="minimizeWindow('timerApp')">─</span>
+            <span class="win-pill-btn pill-close" onclick="closeWindow('timerApp')">✕</span>
+          </div>
+        </div>
+        <div class="window-body" style="padding:22px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:16px;">
+          <div style="font-size:3rem; font-family:var(--font-code); font-weight:700;" id="stopwatchDisp">00:00:00</div>
+          <div style="display:flex; gap:10px;">
+            <button class="btn-ui btn-accent" onclick="startStopwatch()">Start</button>
+            <button class="btn-ui" onclick="pauseStopwatch()">Pause</button>
+            <button class="btn-ui btn-danger" onclick="resetStopwatch()">Reset</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- APP 16: WEATHER WIDGET APP -->
+      <div class="os-window" id="weatherApp" style="width: 480px; height: 360px; top: 90px; left: 250px;">
+        <div class="window-topbar" onmousedown="dragWindow(event, 'weatherApp')">
+          <div class="window-title">🌤️ Cyber Weather Center</div>
+          <div class="win-controls-pills">
+            <span class="win-pill-btn" onclick="minimizeWindow('weatherApp')">─</span>
+            <span class="win-pill-btn pill-close" onclick="closeWindow('weatherApp')">✕</span>
+          </div>
+        </div>
+        <div class="window-body" style="padding:22px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:12px;">
+          <div style="font-size:4rem;">🌤️</div>
+          <div style="font-size:2.2rem; font-weight:800;">24°C / Neon Clear</div>
+          <div style="font-size:0.85rem; color:var(--text-sub);">Dynamic Glass Atmosphere Active</div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Context Menu -->
+    <div class="context-menu" id="desktopContextMenu">
+      <div class="context-item" onclick="openWindow('documentCore')">📁 Open Files</div>
+      <div class="context-item" onclick="openWindow('settingsApp')">⚙️ Change Wallpaper</div>
+      <div class="context-item" onclick="openWindow('concertApp')">🎤 RappingConcert</div>
+      <div class="context-item" onclick="location.reload()">🔄 Refresh OS</div>
+    </div>
+
+    <!-- Notification Center Panel -->
+    <div class="notification-center" id="notificationCenter">
+      <h3 style="font-size:1rem; font-weight:700;">Notifications & System Control</h3>
+      <div style="font-size:0.85rem; color:var(--text-sub); border-bottom:1px solid var(--glass-border); padding-bottom:14px;">ENFROK OS 5.1 initialized with zero taskbar movement.</div>
+    </div>
+
+    <!-- STRICT ZERO-ANIMATION TASKBAR (DOCK) -->
+    <div class="dock-wrapper" id="dockWrapper">
+      <button class="dock-launcher-btn" onclick="toggleLaunchHub()" title="Open Launch Hub">E</button>
+      <div class="dock-divider"></div>
+      <div id="dockItemsArea" style="display:flex; gap:12px;"></div>
+    </div>
+
+    <!-- CUSTOM LAUNCH MENU PANEL WITH ELEGANT TRANSITION -->
+    <div class="launch-hub-panel" id="launchHubPanel">
+      <div class="hub-header">
+        <div class="hub-user">
+          <div class="hub-avatar" id="hubAvatarLetter">D</div>
+          <div>
+            <div style="font-weight:800; font-size:0.95rem;" id="hubUsername">Developer</div>
+            <div style="font-size:0.78rem; color:var(--text-sub);">ENFROK Workstation Root</div>
+          </div>
+        </div>
+        <button class="btn-ui" onclick="openWindow('settingsApp'); toggleLaunchHub();">⚙️ Settings</button>
+      </div>
+
+      <input type="text" class="input-ui" placeholder="Search applications, tools or files..." onkeyup="filterHub(this.value)" />
+
+      <div class="hub-grid" id="hubGrid"></div>
+    </div>
+
+    <!-- Search Overlay -->
+    <div class="search-overlay" id="searchOverlay">
+      <input type="text" class="input-ui" id="globalSearchInput" placeholder="Global ENFROK Search..." onkeyup="handleGlobalSearch(this.value)" />
+      <div id="searchResults" style="margin-top:14px; max-height:260px; overflow-y:auto; font-size:0.88rem; color:var(--text-sub);"></div>
+    </div>
+
+  </div>
+
+<script>
+  // 30+ WALLPAPERS
+  const WALLPAPERS = [
+    'https://images.unsplash.com/photo-1506744038136-46273834b3fb?q=80&w=600',
+    'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=600',
+    'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?q=80&w=600',
+    'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?q=80&w=600',
+    'https://images.unsplash.com/photo-1534447677768-be436bb09401?q=80&w=600',
+    'https://images.unsplash.com/photo-1579546929518-9e396f3cc809?q=80&w=600',
+    'https://images.unsplash.com/photo-1550684848-fac1c5b4e853?q=80&w=600',
+    'https://images.unsplash.com/photo-1519681393784-d120267933ba?q=80&w=600',
+    'https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?q=80&w=600',
+    'https://images.unsplash.com/photo-1441974231531-c6227db76b6e?q=80&w=600',
+    'https://images.unsplash.com/photo-1472214103451-9374bd1c798e?q=80&w=600',
+    'https://images.unsplash.com/photo-1469474968028-56623f02e42e?q=80&w=600',
+    'https://images.unsplash.com/photo-1501785888041-af3ef285b470?q=80&w=600',
+    'https://images.unsplash.com/photo-1426604966848-d7adac402bff?q=80&w=600',
+    'https://images.unsplash.com/photo-1511447333015-45b65e60f6d5?q=80&w=600',
+    'https://images.unsplash.com/photo-1502134249126-9f3755a50d78?q=80&w=600',
+    'https://images.unsplash.com/photo-1451187580459-43490279c0fa?q=80&w=600',
+    'https://images.unsplash.com/photo-1518837695005-2083093ee35b?q=80&w=600',
+    'https://images.unsplash.com/photo-1508739773434-c26b3d09e071?q=80&w=600',
+    'https://images.unsplash.com/photo-1518005020951-eccb494ad742?q=80&w=600',
+    'https://images.unsplash.com/photo-1509198397868-475647b2a1e5?q=80&w=600',
+    'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?q=80&w=600',
+    'https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?q=80&w=600',
+    'https://images.unsplash.com/photo-1470770841072-f978cf4d019e?q=80&w=600',
+    'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?q=80&w=600',
+    'https://images.unsplash.com/photo-1513836279014-a89f7a76ae86?q=80&w=600',
+    'https://images.unsplash.com/photo-1499346030926-9a72daac6c63?q=80&w=600',
+    'https://images.unsplash.com/photo-1439853949127-fa647821eba0?q=80&w=600',
+    'https://images.unsplash.com/photo-1465146344425-f00d5f5c8f07?q=80&w=600',
+    'https://images.unsplash.com/photo-1470240731273-7821a6eeb6bd?q=80&w=600'
+  ];
+
+  // 16 FULL INTEGRATED APPS (WALLET COMPLETELY REMOVED)
+  const APPS = [
+    { id: 'documentCore', name: 'Files', icon: '📁' },
+    { id: 'terminalApp', name: 'Terminal', icon: '⚡' },
+    { id: 'codeStudio', name: 'Studio Code', icon: '👨‍💻' },
+    { id: 'browserApp', name: 'Browser', icon: '🌐' },
+    { id: 'calcApp', name: 'Calculator', icon: '🧮' },
+    { id: 'notesApp', name: 'Notes', icon: '📝' },
+    { id: 'concertApp', name: 'Concert', icon: '🎤' },
+    { id: 'luckyApp', name: 'Lucky Block', icon: '📦' },
+    { id: 'matrixApp', name: 'Matrix Rain', icon: '🟢' },
+    { id: 'adminApp', name: 'Admin Control', icon: '👑' },
+    { id: 'hardwareApp', name: 'Hardware', icon: '📊' },
+    { id: 'soundboardApp', name: 'Soundboard', icon: '🔊' },
+    { id: 'paintApp', name: 'Canvas Paint', icon: '🎨' },
+    { id: 'timerApp', name: 'Stopwatch', icon: '⏱️' },
+    { id: 'weatherApp', name: 'Weather', icon: '🌤️' },
+    { id: 'settingsApp', name: 'Settings', icon: '⚙️' }
+  ];
+
+  let winZIndex = 200;
+  let currentRam = 3.2;
+  let audioMuted = false;
+  let stopwatchInterval = null;
+  let stopwatchSecs = 0;
+
+  let osData = {
+    installed: false,
+    username: 'Developer',
+    wallpaper: WALLPAPERS[0].replace('&w=600', '&w=1920'),
+    folders: ['Kernel_Core', 'Luau_Modules', 'User_Documents'],
+    notes: 'Welcome to ENFROK OS 5.1!'
+  };
+
+  function loadData() {
+    const saved = localStorage.getItem('enfrok_os_v51');
+    if (saved) {
+      try { osData = JSON.parse(saved); } catch(e) {}
+    }
+  }
+
+  function saveData() {
+    localStorage.setItem('enfrok_os_v51', JSON.stringify(osData));
+  }
+
+  function eraseSystemData() {
+    localStorage.removeItem('enfrok_os_v51');
+    location.reload();
+  }
+
+  // BOOT INITIALIZATION
+  window.addEventListener('DOMContentLoaded', () => {
+    loadData();
+    populateWallpapers();
+
+    if (osData.notes) document.getElementById('notesArea').value = osData.notes;
+
+    if (osData.installed) {
+      setWallpaper(osData.wallpaper);
+      setTimeout(() => {
+        document.getElementById('boot-screen').classList.add('hidden');
+        document.getElementById('desktop-screen').classList.remove('hidden');
+        initDesktop();
+        initMatrix();
+        initPaint();
+      }, 800);
+    } else {
+      setTimeout(() => {
+        document.getElementById('boot-screen').classList.add('hidden');
+        document.getElementById('setup-screen').classList.remove('hidden');
+      }, 1000);
+    }
+  });
+
+  function populateWallpapers() {
+    const setupGrid = document.getElementById('setupWpGrid');
+    const settingsGrid = document.getElementById('settingsWpGrid');
+    setupGrid.innerHTML = ''; settingsGrid.innerHTML = '';
+
+    WALLPAPERS.forEach((wp, idx) => {
+      const fullUrl = wp.replace('&w=600', '&w=1920');
+
+      const card1 = document.createElement('div');
+      card1.className = `wp-thumb ${idx === 0 ? 'active' : ''}`;
+      card1.style.backgroundImage = `url('${wp}')`;
+      card1.onclick = () => {
+        document.querySelectorAll('#setupWpGrid .wp-thumb').forEach(c => c.classList.remove('active'));
+        card1.classList.add('active');
+        osData.wallpaper = fullUrl;
+      };
+      setupGrid.appendChild(card1);
+
+      const card2 = document.createElement('div');
+      card2.className = `wp-thumb ${osData.wallpaper === fullUrl ? 'active' : ''}`;
+      card2.style.backgroundImage = `url('${wp}')`;
+      card2.onclick = () => {
+        document.querySelectorAll('#settingsWpGrid .wp-thumb').forEach(c => c.classList.remove('active'));
+        card2.classList.add('active');
+        setWallpaper(fullUrl);
+      };
+      settingsGrid.appendChild(card2);
+    });
+  }
+
+  function navSetup(page) {
+    document.querySelectorAll('.setup-page').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.setup-step').forEach(s => s.classList.remove('active'));
+    document.getElementById(`page${page}`).classList.add('active');
+    document.getElementById(`step${page}`).classList.add('active');
+  }
+
+  function startInstallation() {
+    osData.username = document.getElementById('setupUsername').value || "Developer";
+    let pct = 0;
+    const bar = document.getElementById('installBar');
+    const txt = document.getElementById('installPct');
+
+    const timer = setInterval(() => {
+      pct += 10;
+      if (pct > 100) pct = 100;
+      bar.style.width = `${pct}%`;
+      txt.textContent = `${pct}%`;
+
+      if (pct >= 100) {
+        clearInterval(timer);
+        osData.installed = true;
+        saveData();
+        setTimeout(launchDesktop, 400);
+      }
+    }, 100);
+  }
+
+  function launchDesktop() {
+    setWallpaper(osData.wallpaper);
+    document.getElementById('setup-screen').classList.add('hidden');
+    document.getElementById('desktop-screen').classList.remove('hidden');
+    initDesktop();
+    initMatrix();
+    initPaint();
+  }
+
+  // DESKTOP INIT
+  function initDesktop() {
+    const desktopGrid = document.getElementById('desktopGrid');
+    const dockItemsArea = document.getElementById('dockItemsArea');
+    const hubGrid = document.getElementById('hubGrid');
+
+    desktopGrid.innerHTML = ''; dockItemsArea.innerHTML = ''; hubGrid.innerHTML = '';
+
+    const uName = osData.username || 'Developer';
+    document.getElementById('hubUsername').textContent = uName;
+    document.getElementById('hubAvatarLetter').textContent = uName.charAt(0).toUpperCase();
+
+    APPS.forEach(app => {
+      desktopGrid.innerHTML += `
+        <div class="d-icon" onclick="openWindow('${app.id}')" onmousedown="selectDesktopIcon(this)">
+          <div class="d-icon-box">${app.icon}</div>
+          <span>${app.name}</span>
+        </div>
+      `;
+
+      const dockItem = document.createElement('div');
+      dockItem.className = 'dock-item';
+      dockItem.id = `dock-${app.id}`;
+      dockItem.innerHTML = app.icon;
+      dockItem.onclick = () => toggleWindow(app.id);
+      dockItemsArea.appendChild(dockItem);
+
+      hubGrid.innerHTML += `
+        <div class="d-icon" onclick="openWindow('${app.id}'); toggleLaunchHub();">
+          <div class="d-icon-box">${app.icon}</div>
+          <span>${app.name}</span>
+        </div>
+      `;
+    });
+
+    renderFolders();
+    updateDockState();
+  }
+
+  function selectDesktopIcon(el) {
+    document.querySelectorAll('.d-icon').forEach(i => i.classList.remove('selected'));
+    el.classList.add('selected');
+  }
+
+  // WINDOW MANAGEMENT ENGINE WITH ELEGANT ANIMATIONS
+  function openWindow(id) {
+    const win = document.getElementById(id);
+    if (win) {
+      win.classList.add('open-active');
+      win.classList.remove('minimized');
+      focusWindow(win);
+      updateDockState();
+    }
+  }
+
+  function focusWindow(win) {
+    document.querySelectorAll('.os-window').forEach(w => {
+      w.classList.remove('focused');
+      w.classList.add('unfocused');
+    });
+    win.classList.remove('unfocused');
+    win.classList.add('focused');
+    win.style.zIndex = ++winZIndex;
+  }
+
+  function minimizeWindow(id) {
+    const win = document.getElementById(id);
+    if (win) {
+      win.classList.add('minimized');
+      updateDockState();
+    }
+  }
+
+  function toggleWindow(id) {
+    const win = document.getElementById(id);
+    if (!win) return;
+    if (win.classList.contains('minimized') || !win.classList.contains('open-active')) openWindow(id);
+    else minimizeWindow(id);
+  }
+
+  function toggleFullscreen(id) {
+    const win = document.getElementById(id);
+    if (win) win.classList.toggle('fullscreen');
+  }
+
+  function closeWindow(id) {
+    if (id === 'documentCore') return;
+    minimizeWindow(id);
+  }
+
+  function updateDockState() {
+    APPS.forEach(app => {
+      const win = document.getElementById(app.id);
+      const dockItem = document.getElementById(`dock-${app.id}`);
+      if (win && dockItem) {
+        if (win.classList.contains('open-active') && !win.classList.contains('minimized')) dockItem.classList.add('active');
+        else dockItem.classList.remove('active');
+      }
+    });
+  }
+
+  function dragWindow(e, id) {
+    const win = document.getElementById(id);
+    if (win.classList.contains('fullscreen')) return;
+
+    focusWindow(win);
+    let shiftX = e.clientX - win.getBoundingClientRect().left;
+    let shiftY = e.clientY - win.getBoundingClientRect().top;
+
+    function moveAt(px, py) {
+      win.style.left = px - shiftX + 'px';
+      win.style.top = py - shiftY + 'px';
+    }
+
+    function onMouseMove(evt) { moveAt(evt.clientX, evt.clientY); }
+    document.addEventListener('mousemove', onMouseMove);
+    document.onmouseup = function() {
+      document.removeEventListener('mousemove', onMouseMove);
+      document.onmouseup = null;
+    };
+  }
+
+  function switchSettingsTab(tabId, navEl) {
+    document.querySelectorAll('.settings-section').forEach(s => s.classList.remove('active'));
+    document.querySelectorAll('#settingsApp .os-nav-item').forEach(n => n.classList.remove('active'));
+
+    document.getElementById(tabId).classList.add('active');
+    navEl.classList.add('active');
+  }
+
+  function setGlassBlur(val) {
+    document.documentElement.style.setProperty('--glass-blur', `blur(${val}px)`);
+  }
+
+  // SYSTEM UTILITIES
+  function adminCmd(action) {
+    const log = document.getElementById('adminLog');
+    log.innerHTML += `<div>[${new Date().toLocaleTimeString()}] ${action}</div>`;
+    log.scrollTop = log.scrollHeight;
+    playBeep(600);
+  }
+
+  function toggleMuteAudio() {
+    audioMuted = !audioMuted;
+    document.getElementById('sysAudioMute').textContent = audioMuted ? '🔇 Muted' : '🔊 Audio';
+  }
+
+  function playBeep(freq) {
+    if (audioMuted) return;
+    try {
+      const ctx = new (window.AudioContext || window.webkitAudioContext)();
+      const osc = ctx.createOscillator();
+      osc.type = 'sine';
+      osc.frequency.value = freq;
+      osc.connect(ctx.destination);
+      osc.start();
+      osc.stop(ctx.currentTime + 0.15);
+    } catch(e) {}
+  }
+
+  function startStopwatch() {
+    if (stopwatchInterval) return;
+    stopwatchInterval = setInterval(() => {
+      stopwatchSecs++;
+      let hrs = String(Math.floor(stopwatchSecs / 3600)).padStart(2, '0');
+      let mins = String(Math.floor((stopwatchSecs % 3600) / 60)).padStart(2, '0');
+      let secs = String(stopwatchSecs % 60).padStart(2, '0');
+      document.getElementById('stopwatchDisp').textContent = `${hrs}:${mins}:${secs}`;
+    }, 1000);
+  }
+
+  function pauseStopwatch() {
+    clearInterval(stopwatchInterval);
+    stopwatchInterval = null;
+  }
+
+  function resetStopwatch() {
+    pauseStopwatch();
+    stopwatchSecs = 0;
+    document.getElementById('stopwatchDisp').textContent = '00:00:00';
+  }
+
+  // MATRIX RAIN CANVAS ENGINE
+  function initMatrix() {
+    const canvas = document.getElementById('matrixCanvas');
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    canvas.width = 600; canvas.height = 360;
+
+    const chars = '0123456789ABCDEFENFROK';
+    const fontSize = 14;
+    const columns = canvas.width / fontSize;
+    const drops = Array(Math.floor(columns)).fill(1);
+
+    function draw() {
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.05)';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.fillStyle = '#00f2fe';
+      ctx.font = fontSize + 'px monospace';
+
+      for (let i = 0; i < drops.length; i++) {
+        const text = chars.charAt(Math.floor(Math.random() * chars.length));
+        ctx.fillText(text, i * fontSize, drops[i] * fontSize);
+        if (drops[i] * fontSize > canvas.height && Math.random() > 0.975) drops[i] = 0;
+        drops[i]++;
+      }
+    }
+    setInterval(draw, 33);
+  }
+
+  // PAINT CANVAS ENGINE
+  function initPaint() {
+    const canvas = document.getElementById('paintCanvas');
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    canvas.width = 600; canvas.height = 360;
+    let painting = false;
+
+    canvas.onmousedown = () => painting = true;
+    canvas.onmouseup = () => { painting = false; ctx.beginPath(); };
+    canvas.onmousemove = (e) => {
+      if (!painting) return;
+      const rect = canvas.getBoundingClientRect();
+      ctx.lineWidth = 4;
+      ctx.lineCap = 'round';
+      ctx.strokeStyle = document.getElementById('paintColor').value;
+      ctx.lineTo(e.clientX - rect.left, e.clientY - rect.top);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(e.clientX - rect.left, e.clientY - rect.top);
+    };
+  }
+
+  function clearPaint() {
+    const canvas = document.getElementById('paintCanvas');
+    if (canvas) canvas.getContext('2d').clearRect(0, 0, canvas.width, canvas.height);
+  }
+
+  function openLuckyBlock() {
+    const rewards = ['Brainrot God Pet (0.1%)', 'Mythic Taco (2.5%)', 'Radioactive Plot (5%)', 'Common Block'];
+    const res = rewards[Math.floor(Math.random() * rewards.length)];
+    document.getElementById('luckyResult').textContent = `🎉 You Unlocked: ${res}!`;
+  }
+
+  function openContextMenu(e) {
+    e.preventDefault();
+    const menu = document.getElementById('desktopContextMenu');
+    menu.style.top = `${e.clientY}px`;
+    menu.style.left = `${e.clientX}px`;
+    menu.classList.add('open');
+  }
+
+  function closeContextMenus() {
+    document.getElementById('desktopContextMenu').classList.remove('open');
+  }
+
+  function toggleNotifications() {
+    document.getElementById('notificationCenter').classList.toggle('open');
+  }
+
+  function toggleLaunchHub() {
+    document.getElementById('launchHubPanel').classList.toggle('open');
+  }
+
+  function filterHub(q) {
+    const tiles = document.querySelectorAll('#hubGrid .d-icon');
+    tiles.forEach(tile => {
+      const name = tile.querySelector('span').textContent.toLowerCase();
+      tile.style.display = name.includes(q.toLowerCase()) ? 'flex' : 'none';
+    });
+  }
+
+  function toggleSearch() {
+    const search = document.getElementById('searchOverlay');
+    search.classList.toggle('open');
+    if (search.classList.contains('open')) document.getElementById('globalSearchInput').focus();
+  }
+
+  function handleGlobalSearch(q) {
+    const results = document.getElementById('searchResults');
+    if (!q.trim()) { results.innerHTML = ''; return; }
+    
+    let matches = APPS.filter(a => a.name.toLowerCase().includes(q.toLowerCase()));
+    results.innerHTML = matches.map(m => `
+      <div style="padding:10px; background:rgba(255,255,255,0.06); border-radius:10px; margin-bottom:8px; cursor:pointer;" onclick="openWindow('${m.id}'); toggleSearch();">
+        ${m.icon} ${m.name} (Application)
+      </div>
+    `).join('') || 'No matches found.';
+  }
+
+  document.addEventListener('keydown', (e) => {
+    if (e.ctrlKey && e.code === 'Space') {
+      e.preventDefault();
+      toggleSearch();
+    }
+  });
+
+  function renderFolders() {
+    const view = document.getElementById('folderView');
+    view.innerHTML = '';
+    osData.folders.forEach(f => {
+      view.innerHTML += `<div class="file-item"><span style="font-size:2.2rem;">📁</span><span>${f}</span></div>`;
+    });
+    view.innerHTML += `<div class="file-item"><span style="font-size:2.2rem;">📄</span><span>System_Init.log</span></div>`;
+  }
+
+  function handleTermCmd(e) {
+    if (e.key === 'Enter') {
+      const input = document.getElementById('termInput');
+      const output = document.getElementById('termOutput');
+      const cmd = input.value.trim().toLowerCase();
+      input.value = '';
+
+      let res = '';
+      switch(cmd) {
+        case 'help':
+          res = `ENFROK Utilities:
+- help: Command list
+- ls: List files in Root Storage
+- mkdir <name>: Create directory
+- clear: Flush terminal screen`;
+          break;
+        case 'ls':
+          res = `root_storage/\n` + osData.folders.map(f => `├── ${f}/`).join('\n') + `\n└── System_Init.log`;
+          break;
+        case 'clear':
+          output.textContent = ''; return;
+        default:
+          if (cmd.startsWith('mkdir ')) {
+            const folder = cmd.replace('mkdir ', '');
+            if (!osData.folders.includes(folder)) {
+              osData.folders.push(folder);
+              saveData();
+              renderFolders();
+            }
+            res = `Created directory: '${folder}' in Root Storage.`;
+          } else {
+            res = `Command '${cmd}' not recognized. Type 'help' for utilities.`;
+          }
+      }
+
+      output.textContent += `\n\nenfrok@root:~$ ${cmd}\n${res}`;
+      document.getElementById('termContainer').scrollTop = document.getElementById('termContainer').scrollHeight;
+    }
+  }
+
+  function runCode() {
+    const code = document.getElementById('codeInput').value;
+    const log = document.getElementById('codeLog');
+    log.textContent = "-- Execution Output --\n";
+
+    try {
+      let outputs = [];
+      const customPrint = (...args) => outputs.push(args.join(" "));
+      const execCode = code.replace(/print/g, 'customPrint');
+      const run = new Function('customPrint', execCode);
+      run(customPrint);
+      log.textContent += outputs.join("\n") + "\n[Status]: Execution finished.";
+    } catch(err) {
+      log.textContent += `[Error]: ${err.message}`;
+    }
+  }
+
+  function saveNotes() {
+    osData.notes = document.getElementById('notesArea').value;
+    saveData();
+  }
+
+  function navBrowser() {
+    const url = document.getElementById('browserUrl').value;
+    document.getElementById('browserIframe').src = url.startsWith('http') ? url : 'https://' + url;
+  }
+
+  function calcNum(v) {
+    const d = document.getElementById('calcDisp');
+    if (d.value === '0') d.value = '';
+    d.value += v;
+  }
+  function calcClear() { document.getElementById('calcDisp').value = '0'; }
+  function calcEval() {
+    try { document.getElementById('calcDisp').value = eval(document.getElementById('calcDisp').value); }
+    catch { document.getElementById('calcDisp').value = 'Error'; }
+  }
+
+  function setWallpaper(url) {
+    osData.wallpaper = url;
+    saveData();
+    document.documentElement.style.setProperty('--bg-wallpaper', `url('${url}')`);
+  }
+
+  // SYSTEM CLOCK & HARDWARE USAGE SIMULATOR
+  setInterval(() => {
+    const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    document.getElementById('sysClock').textContent = timeStr;
+
+    currentRam += (Math.random() * 0.1) - 0.05;
+    if (currentRam < 2.8) currentRam = 2.8;
+    if (currentRam > 6.8) currentRam = 6.8;
+
+    const cpu = Math.floor(15 + Math.random() * 20);
+    const gpu = Math.floor(20 + Math.random() * 15);
+
+    document.getElementById('sysRam').textContent = `${currentRam.toFixed(1)} / 12.0 GB RAM`;
+    if (document.getElementById('cpuUsageVal')) {
+      document.getElementById('cpuUsageVal').textContent = `${cpu}%`;
+      document.getElementById('cpuBar').style.width = `${cpu}%`;
+      document.getElementById('gpuUsageVal').textContent = `${gpu}%`;
+      document.getElementById('gpuBar').style.width = `${gpu}%`;
+    }
+  }, 1000);
+</script>
+</body>
+</html>
